@@ -1,4 +1,4 @@
-export const API_URL = "https://fintrackapi.duckdns.org/api";
+export const API_URL = "https://fintrack.myaddr.io/api";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
