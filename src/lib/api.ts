@@ -1,4 +1,4 @@
-export const API_URL = "https://fintrack.myaddr.io/api";
+export const API_URL = "http://127.0.0.1:8000/api";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -46,6 +46,17 @@ async function request<T>(path: string, options: { method?: HttpMethod; body?: u
   return data as T;
 }
 
+function toQuery(params?: Record<string, string | undefined>): string {
+  const qs = new URLSearchParams();
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v) qs.set(k, v);
+    });
+  }
+  const s = qs.toString();
+  return s ? `?${s}` : "";
+}
+
 // Auth
 export async function apiLogin(params: { username: string; password: string }): Promise<{ access_token: string }>
 {
@@ -71,32 +82,36 @@ export async function apiRegister(params: {
 }
 
 // Expenses
-export async function apiGetExpensesCards(token: string): Promise<{
+export async function apiGetExpensesCards(token: string, params?: { dat_start?: string; dat_end?: string }): Promise<{
   status: string;
   cards_dict: { total_expenses: number; top_category: string; last_transactions: Array<unknown> };
 }> {
-  return request("/expenses/cards", { method: "GET", token });
+  const q = toQuery({ dat_start: params?.dat_start, dat_end: params?.dat_end });
+  return request(`/expenses/cards${q}`, { method: "GET", token });
 }
 
-export async function apiGetExpensesTable(token: string): Promise<{
+export async function apiGetExpensesTable(token: string, params?: { dat_start?: string; dat_end?: string }): Promise<{
   status: string;
   expenses_list: Array<{ expense_date: string; category_name: string; value: number }>;
 }> {
-  return request("/expenses/table", { method: "GET", token });
+  const q = toQuery({ dat_start: params?.dat_start, dat_end: params?.dat_end });
+  return request(`/expenses/table${q}`, { method: "GET", token });
 }
 
-export async function apiGetExpensesGraphicCategory(token: string): Promise<{
+export async function apiGetExpensesGraphicCategory(token: string, params?: { dat_start?: string; dat_end?: string }): Promise<{
   status: string;
   categories_list: Array<{ name: string; value: number; perc: number }>;
 }> {
-  return request("/expenses/graphic/categories", { method: "GET", token });
+  const q = toQuery({ dat_start: params?.dat_start, dat_end: params?.dat_end });
+  return request(`/expenses/graphic/categories${q}`, { method: "GET", token });
 }
 
-export async function apiGetExpensesGraphicDays(token: string): Promise<{
+export async function apiGetExpensesGraphicDays(token: string, params?: { dat_start?: string; dat_end?: string }): Promise<{
   status: string;
   days_list: Array<{ day: string; value: number }>;
 }> {
-  return request("/expenses/graphic/days", { method: "GET", token });
+  const q = toQuery({ dat_start: params?.dat_start, dat_end: params?.dat_end });
+  return request(`/expenses/graphic/days${q}`, { method: "GET", token });
 }
 
 

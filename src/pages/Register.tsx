@@ -8,17 +8,13 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import Brand from "@/components/Brand";
 import { apiRegister } from "@/lib/api";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+ 
 
 const Register = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [phoneDigits, setPhoneDigits] = useState("");
-  const [birthDate, setBirthDate] = useState<Date | null>(null);
+  const [birthDate, setBirthDate] = useState<string>(""); // ISO yyyy-MM-dd
 
   const onlyDigits = (val: string) => val.replace(/\D/g, "");
   const formatPhoneBR = (digits: string) => {
@@ -48,7 +44,7 @@ const Register = () => {
     }
 
     const phone_number = `55${digits}`;
-    const birth_date = format(birthDate, "yyyy-MM-dd");
+    const birth_date = birthDate; // já vem em yyyy-MM-dd do input type=date
 
     const payload = { first_name, last_name, phone_number, birth_date, username, password };
     try {
@@ -116,30 +112,14 @@ const Register = () => {
 
                 <div className="grid gap-2">
                   <Label htmlFor="birth_date">Data de nascimento</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !birthDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {birthDate ? format(birthDate, "dd/MM/yyyy") : "Selecionar data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={birthDate}
-                        onSelect={setBirthDate}
-                        fromYear={1900}
-                        toYear={new Date().getFullYear()}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Input
+                    id="birth_date"
+                    name="birth_date"
+                    type="date"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                    required
+                  />
                 </div>
 
                 <div className="grid gap-2">
