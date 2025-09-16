@@ -64,8 +64,8 @@ const Register = () => {
   return (
     <>
       <Helmet>
-        <title>Registrar | FinTrack</title>
-        <meta name="description" content="Crie sua conta no FinTrack." />
+        <title>Registrar | Financ.IA</title>
+        <meta name="description" content="Crie sua conta no Financ.IA." />
         <link rel="canonical" href={canonical} />
       </Helmet>
 

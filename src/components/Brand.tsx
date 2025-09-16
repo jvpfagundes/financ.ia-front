@@ -6,7 +6,7 @@ const Brand = () => {
       <div className="p-2 rounded-xl bg-gradient-primary shadow-elev-1">
         <LineChartIcon className="h-5 w-5 text-primary-foreground" />
       </div>
-      <span className="font-heading text-xl">FinTrack</span>
+      <span className="font-heading text-xl">Financ.IA</span>
     </div>
   );
 };

@@ -298,8 +298,8 @@ const Dashboard = () => {
   return (
     <>
       <Helmet>
-        <title>Dashboard | FinTrack</title>
-        <meta name="description" content="Veja seus gastos por categoria, tendências e últimas transações no FinTrack." />
+        <title>Dashboard | Financ.IA</title>
+        <meta name="description" content="Veja seus gastos por categoria, tendências e últimas transações no Financ.IA." />
         <link rel="canonical" href={canonical} />
         <script type="application/ld+json">
           {JSON.stringify({
@@ -584,7 +584,7 @@ const Dashboard = () => {
 
         <Separator className="my-8" />
         <footer className="pb-8 text-sm text-muted-foreground text-center">
-          © {new Date().getFullYear()} FinTrack — seu controle de gastos inteligente.
+          © {new Date().getFullYear()} Financ.IA — seu controle de gastos inteligente.
         </footer>
       </main>
     </>

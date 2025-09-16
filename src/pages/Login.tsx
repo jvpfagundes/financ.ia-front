@@ -22,7 +22,7 @@ const Login = () => {
     try {
       setLoading(true);
       await login(username, password);
-      toast({ title: "Login realizado", description: "Bem-vindo ao FinTrack!" });
+      toast({ title: "Login realizado", description: "Bem-vindo ao Financ.IA!" });
       navigate("/dashboard");
     } catch (err: any) {
       toast({ title: "Erro no login", description: err?.message || "Credenciais inválidas" });
@@ -36,14 +36,14 @@ const Login = () => {
   return (
     <>
       <Helmet>
-        <title>Login | FinTrack</title>
-        <meta name="description" content="Entre no FinTrack e visualize seus gastos com gráficos e tabelas inteligentes." />
+        <title>Login | Financ.IA</title>
+        <meta name="description" content="Entre no Financ.IA e visualize seus gastos com gráficos e tabelas inteligentes." />
         <link rel="canonical" href={canonical} />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebApplication",
-            name: "FinTrack",
+            name: "Financ.IA",
             applicationCategory: "FinanceApplication",
             url: canonical || "",
           })}
