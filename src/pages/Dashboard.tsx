@@ -7,12 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Trash2, Plus } from "lucide-react";
 import Brand from "@/components/Brand";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
-import { apiGetExpensesCards, apiGetExpensesGraphicCategory, apiGetExpensesGraphicDays, apiGetExpensesTable } from "@/lib/api";
+import { apiCreateExpense, apiDeleteExpense, apiGetExpenseCategories, apiGetExpensesCards, apiGetExpensesGraphicCategory, apiGetExpensesGraphicDays, apiGetExpensesTable, ExpenseCategory } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 type CategoryData = { name: string; value: number; perc?: number };
 type DayData = { day: string; value: number };
@@ -35,8 +41,39 @@ const Dashboard = () => {
   const [cards, setCards] = useState<{ total_expenses: number; top_category: string; last_transactions: LastTransaction[] } | null>(null);
   const [categories, setCategories] = useState<CategoryData[]>([]);
   const [days, setDays] = useState<DayData[]>([]);
-  const [tableRows, setTableRows] = useState<Array<{ expense_date: string; category_name: string; value: number }>>([]);
+  const [tableRows, setTableRows] = useState<Array<{ expense_date: string; category_name: string; value: number; description?: string; id?: number | string; ID?: number | string }>>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  // Modal Nova Despesa
+  const [openNew, setOpenNew] = useState(false);
+  const [amount, setAmount] = useState<string>("");
+  const [description, setDescription] = useState<string>("");
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [isRecurring, setIsRecurring] = useState<boolean>(false);
+  const [recurrence, setRecurrence] = useState<string>("monthly");
+  const [expenseDate, setExpenseDate] = useState<string>(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const da = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${da}`;
+  });
+  const [expenseTime, setExpenseTime] = useState<string>(() => {
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  });
+  const [saving, setSaving] = useState(false);
+  const [categoriesOptions, setCategoriesOptions] = useState<ExpenseCategory[]>([]);
+
+  // Garante categoria padrão ao abrir o modal e já ter lista carregada
+  useEffect(() => {
+    if (openNew && !categoryId && categoriesOptions.length > 0) {
+      setCategoryId(String(categoriesOptions[0].id));
+    }
+  }, [openNew, categoriesOptions]);
 
   // Filtros de data
   const [filterMode, setFilterMode] = useState<"day" | "week" | "month">("week");
@@ -174,8 +211,9 @@ const Dashboard = () => {
       apiGetExpensesTable(token, params),
       apiGetExpensesGraphicCategory(token, params),
       apiGetExpensesGraphicDays(token, params),
+      apiGetExpenseCategories(token),
     ])
-      .then(([cardsRes, tableRes, catRes, daysRes]) => {
+      .then(([cardsRes, tableRes, catRes, daysRes, categoriesRes]) => {
         const raw = cardsRes.cards_dict as any;
         const normalized = {
           total_expenses: Number(raw?.total_expenses ?? 0),
@@ -193,6 +231,7 @@ const Dashboard = () => {
         setTableRows(tableRes.expenses_list || []);
         setCategories(catRes.categories_list || []);
         setDays(daysRes.days_list || []);
+        setCategoriesOptions(categoriesRes.categories_list || []);
       })
       .catch((err: any) => {
         if (err?.status === 401) {
@@ -352,7 +391,149 @@ const Dashboard = () => {
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => { logout(); navigate("/"); }}>Sair</Button>
-            <Button>Nova Transação</Button>
+            <Dialog open={openNew} onOpenChange={setOpenNew}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus /> Nova Despesa
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Adicionar despesa</DialogTitle>
+                  <DialogDescription>Preencha os campos abaixo para salvar sua despesa.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm">Valor</label>
+                      <Input type="number" step="0.01" placeholder="0,00" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="text-sm">Categoria</label>
+                      <Select value={categoryId} onValueChange={setCategoryId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categoriesOptions.map((c) => (
+                            <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm">Descrição</label>
+                    <Input placeholder="Ex.: Mercado, aluguel, energia..." value={description} onChange={(e) => setDescription(e.target.value)} />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm">Data</label>
+                      <Input type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="text-sm">Hora</label>
+                      <Input type="time" value={expenseTime} onChange={(e) => setExpenseTime(e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="recurring" checked={isRecurring} onCheckedChange={(v) => setIsRecurring(Boolean(v))} />
+                    <label htmlFor="recurring" className="text-sm">Recorrente</label>
+                    {isRecurring && (
+                      <div className="ml-3 w-48">
+                        <Select value={recurrence} onValueChange={setRecurrence}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="daily">Diária</SelectItem>
+                            <SelectItem value="weekly">Semanal</SelectItem>
+                            <SelectItem value="monthly">Mensal</SelectItem>
+                            <SelectItem value="yearly">Anual</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={async () => {
+                      if (!token) return;
+                      if (!amount || !categoryId || !expenseDate || !expenseTime) {
+                        toast({ title: "Campos obrigatórios", description: "Informe valor, categoria, data e hora.", variant: "destructive" });
+                        return;
+                      }
+                      setSaving(true);
+                      try {
+                        const selectedCategory = categoriesOptions.find((c) => String(c.id) === String(categoryId));
+                        const resolvedCategoryId: number | string = selectedCategory ? selectedCategory.id : categoryId;
+                        if (resolvedCategoryId === "" || resolvedCategoryId == null) {
+                          toast({ title: "Categoria inválida", description: "Selecione uma categoria válida.", variant: "destructive" });
+                          setSaving(false);
+                          return;
+                        }
+                        const payload = {
+                          amount: Number(amount),
+                          category_id: resolvedCategoryId,
+                          date: expenseDate,
+                          time: expenseTime,
+                          description: description || undefined,
+                        } as const;
+                        // Diagnóstico: ver payload no console
+                        try { console.debug("POST /expenses payload", payload); } catch {}
+                        const res = await apiCreateExpense(token, payload as any);
+                        const ok = (res as any)?.status === true || String((res as any)?.status).toLowerCase() === "true";
+                        if (ok) {
+                          toast({ title: "Despesa criada", description: `ID: ${(res as any)?.id ?? (res as any)?.ID ?? "-"}` });
+                          setOpenNew(false);
+                          // Recarregar dados
+                          const range = getRange;
+                          const params = range ? { dat_start: formatYmd(range.start), dat_end: formatYmd(range.end) } : undefined;
+                          setLoading(true);
+                          const [cardsRes2, tableRes2, catRes2, daysRes2] = await Promise.all([
+                            apiGetExpensesCards(token, params),
+                            apiGetExpensesTable(token, params),
+                            apiGetExpensesGraphicCategory(token, params),
+                            apiGetExpensesGraphicDays(token, params),
+                          ]);
+                          const raw2 = cardsRes2.cards_dict as any;
+                          setCards({
+                            total_expenses: Number(raw2?.total_expenses ?? 0),
+                            top_category: String(raw2?.top_category ?? "-"),
+                            last_transactions: Array.isArray(raw2?.last_transactions)
+                              ? (raw2.last_transactions as any[]).map((t) => ({
+                                  date: String((t as any)?.date ?? ""),
+                                  name: String((t as any)?.name ?? ""),
+                                  category: String((t as any)?.category ?? ""),
+                                  amount: Number((t as any)?.amount ?? 0),
+                                }))
+                              : [],
+                          });
+                          setTableRows(tableRes2.expenses_list || []);
+                          setCategories(catRes2.categories_list || []);
+                          setDays(daysRes2.days_list || []);
+                          setLoading(false);
+                          // limpar formulário
+                          setAmount("");
+                          setDescription("");
+                          setCategoryId("");
+                          setIsRecurring(false);
+                          setRecurrence("monthly");
+                        } else {
+                          toast({ title: "Falha ao criar", description: "Tente novamente.", variant: "destructive" });
+                        }
+                      } catch (e: any) {
+                        toast({ title: "Erro", description: e?.message || "Erro ao salvar.", variant: "destructive" });
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    disabled={saving}
+                  >{saving ? "Salvando..." : "Salvar"}</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </header>
 
@@ -560,7 +741,9 @@ const Dashboard = () => {
                     <TableRow>
                       <TableHead>Data</TableHead>
                       <TableHead>Categoria</TableHead>
+                      <TableHead>Descrição</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -580,13 +763,81 @@ const Dashboard = () => {
                         const startIdx = (currentPage - 1) * pageSize;
                         const endIdx = Math.min(startIdx + pageSize, totalItems);
                         const pageRows = filteredTableRows.slice(startIdx, endIdx);
-                        return pageRows.map((t, i) => (
-                          <TableRow key={i} className="hover:bg-muted/40">
+                        return pageRows.map((t, i) => {
+                          const expenseId = (t as any)?.ID ?? (t as any)?.id;
+                          return (
+                          <TableRow key={i} className="hover:bg-primary/10">
                             <TableCell>{t.expense_date}</TableCell>
                             <TableCell><Badge variant="secondary">{t.category_name}</Badge></TableCell>
+                            <TableCell>{t.description || "-"}</TableCell>
                             <TableCell className="text-right">R$ {formatCurrency(t.value)}</TableCell>
+                            <TableCell>
+                              {expenseId != null && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" aria-label="Excluir">
+                                      <Trash2 />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Excluir despesa?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta ação não poderá ser desfeita. Confirma a exclusão da despesa {String(expenseId)}?
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={async () => {
+                                          if (!token) return;
+                                          try {
+                                            const res = await apiDeleteExpense(token, { id: expenseId });
+                                            const ok = (res as any)?.status === true || String((res as any)?.status).toLowerCase() === "true";
+                                            if (ok) {
+                                              toast({ title: "Despesa removida" });
+                                              const range = getRange;
+                                              const params = range ? { dat_start: formatYmd(range.start), dat_end: formatYmd(range.end) } : undefined;
+                                              setLoading(true);
+                                              const [cardsRes2, tableRes2, catRes2, daysRes2] = await Promise.all([
+                                                apiGetExpensesCards(token, params),
+                                                apiGetExpensesTable(token, params),
+                                                apiGetExpensesGraphicCategory(token, params),
+                                                apiGetExpensesGraphicDays(token, params),
+                                              ]);
+                                              const raw2 = cardsRes2.cards_dict as any;
+                                              setCards({
+                                                total_expenses: Number(raw2?.total_expenses ?? 0),
+                                                top_category: String(raw2?.top_category ?? "-"),
+                                                last_transactions: Array.isArray(raw2?.last_transactions)
+                                                  ? (raw2.last_transactions as any[]).map((t) => ({
+                                                      date: String((t as any)?.date ?? ""),
+                                                      name: String((t as any)?.name ?? ""),
+                                                      category: String((t as any)?.category ?? ""),
+                                                      amount: Number((t as any)?.amount ?? 0),
+                                                    }))
+                                                  : [],
+                                              });
+                                              setTableRows(tableRes2.expenses_list || []);
+                                              setCategories(catRes2.categories_list || []);
+                                              setDays(daysRes2.days_list || []);
+                                              setLoading(false);
+                                            } else {
+                                              toast({ title: "Falha ao excluir", variant: "destructive" });
+                                            }
+                                          } catch (e: any) {
+                                            toast({ title: "Erro", description: e?.message || "Erro ao excluir.", variant: "destructive" });
+                                          }
+                                        }}
+                                      >Excluir</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </TableCell>
                           </TableRow>
-                        ));
+                          );
+                        });
                       })()
                     )}
                   </TableBody>

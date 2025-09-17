@@ -91,8 +91,8 @@ export async function apiGetExpensesCards(token: string, params?: { dat_start?: 
 }
 
 export async function apiGetExpensesTable(token: string, params?: { dat_start?: string; dat_end?: string }): Promise<{
-  status: string;
-  expenses_list: Array<{ expense_date: string; category_name: string; value: number }>;
+  status: string | boolean;
+  expenses_list: Array<{ expense_date: string; category_name: string; value: number; description?: string; id?: number | string; ID?: number | string }>;
 }> {
   const q = toQuery({ dat_start: params?.dat_start, dat_end: params?.dat_end });
   return request(`/expenses/table${q}`, { method: "GET", token });
@@ -114,5 +114,26 @@ export async function apiGetExpensesGraphicDays(token: string, params?: { dat_st
   return request(`/expenses/graphic/days${q}`, { method: "GET", token });
 }
 
+export type ExpenseCategory = { id: number; name: string };
 
+export async function apiGetExpenseCategories(token: string): Promise<{
+  status: string | boolean;
+  categories_list: ExpenseCategory[];
+}> {
+  return request(`/expenses/categories`, { method: "GET", token });
+}
+
+export async function apiCreateExpense(
+  token: string,
+  body: { amount: number; category_id: number | string; date: string; time: string; description?: string }
+): Promise<{ status: boolean | string; id?: number | string; ID?: number | string }> {
+  return request(`/expenses/`, { method: "POST", token, body });
+}
+
+export async function apiDeleteExpense(
+  token: string,
+  payload: { id: number | string } | { ID: number | string } | { expense_id: number | string }
+): Promise<{ status: boolean | string }> {
+  return request(`/expenses/`, { method: "DELETE", token, body: payload });
+}
 
