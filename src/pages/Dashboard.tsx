@@ -12,6 +12,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { apiGetExpensesCards, apiGetExpensesGraphicCategory, apiGetExpensesGraphicDays, apiGetExpensesTable } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type CategoryData = { name: string; value: number; perc?: number };
 type DayData = { day: string; value: number };
@@ -39,11 +40,49 @@ const Dashboard = () => {
 
   // Filtros de data
   const [filterMode, setFilterMode] = useState<"day" | "week" | "month">("week");
-  const [filterDay, setFilterDay] = useState<string>(""); // YYYY-MM-DD
-  const [filterWeekStart, setFilterWeekStart] = useState<string>(""); // YYYY-MM-DD
-  const [filterWeekEnd, setFilterWeekEnd] = useState<string>(""); // YYYY-MM-DD
-  const [filterMonthStart, setFilterMonthStart] = useState<string>(""); // YYYY-MM
-  const [filterMonthEnd, setFilterMonthEnd] = useState<string>(""); // YYYY-MM
+  const [filterDay, setFilterDay] = useState<string>(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const da = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${da}`;
+  }); // YYYY-MM-DD
+  const [filterWeekStart, setFilterWeekStart] = useState<string>(() => {
+    const base = new Date();
+    const day = base.getDay();
+    const diffToMonday = (day === 0 ? -6 : 1) - day;
+    const start = new Date(base);
+    start.setDate(base.getDate() + diffToMonday);
+    const y = start.getFullYear();
+    const m = String(start.getMonth() + 1).padStart(2, "0");
+    const da = String(start.getDate()).padStart(2, "0");
+    return `${y}-${m}-${da}`;
+  }); // YYYY-MM-DD
+  const [filterWeekEnd, setFilterWeekEnd] = useState<string>(() => {
+    const base = new Date();
+    const day = base.getDay();
+    const diffToMonday = (day === 0 ? -6 : 1) - day;
+    const start = new Date(base);
+    start.setDate(base.getDate() + diffToMonday);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    const y = end.getFullYear();
+    const m = String(end.getMonth() + 1).padStart(2, "0");
+    const da = String(end.getDate()).padStart(2, "0");
+    return `${y}-${m}-${da}`;
+  }); // YYYY-MM-DD
+  const [filterMonthStart, setFilterMonthStart] = useState<string>(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}`;
+  }); // YYYY-MM
+  const [filterMonthEnd, setFilterMonthEnd] = useState<string>(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}`;
+  }); // YYYY-MM
 
   // Paginação
   const [page, setPage] = useState<number>(1);
@@ -125,6 +164,7 @@ const Dashboard = () => {
       return;
     }
     const range = getRange;
+    if (!range) return; // evita chamada não filtrada na primeira renderização
     setLoading(true);
     const params = range
       ? { dat_start: formatYmd(range.start), dat_end: formatYmd(range.end) }
@@ -163,17 +203,7 @@ const Dashboard = () => {
       .finally(() => setLoading(false));
   }, [token, getRange]);
 
-  // Defaults: dia/semana/mês atuais
-  useEffect(() => {
-    const today = new Date();
-    setFilterDay(formatYmd(today));
-    const { start: ws, end: we } = getWeekEdges(today);
-    setFilterWeekStart(formatYmd(ws));
-    setFilterWeekEnd(formatYmd(we));
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    setFilterMonthStart(formatYm(monthStart));
-    setFilterMonthEnd(formatYm(monthStart));
-  }, []);
+  // Defaults agora são definidos nos estados iniciais acima
 
   // Navegação de período
   const goPrev = () => {
@@ -415,7 +445,11 @@ const Dashboard = () => {
               <CardDescription>Resumo consolidado</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-heading">R$ {formatCurrency(totalGasto)}</p>
+              {loading ? (
+                <Skeleton className="h-9 w-40" />
+              ) : (
+                <p className="text-3xl font-heading">R$ {formatCurrency(totalGasto)}</p>
+              )}
             </CardContent>
           </Card>
 
@@ -425,9 +459,11 @@ const Dashboard = () => {
               <CardDescription>Onde você mais gastou</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-xl font-medium">
-                {topCategoryName}
-              </p>
+              {loading ? (
+                <Skeleton className="h-6 w-48" />
+              ) : (
+                <p className="text-xl font-medium">{topCategoryName}</p>
+              )}
             </CardContent>
           </Card>
 
@@ -437,7 +473,11 @@ const Dashboard = () => {
               <CardDescription>Últimos 7 dias</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-heading">{tableRows.length}</p>
+              {loading ? (
+                <Skeleton className="h-9 w-16" />
+              ) : (
+                <p className="text-3xl font-heading">{tableRows.length}</p>
+              )}
             </CardContent>
           </Card>
         </section>
@@ -450,22 +490,28 @@ const Dashboard = () => {
               <CardDescription>Distribuição percentual</CardDescription>
             </CardHeader>
             <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                 <PieChart>
-                  <Pie data={spendingByCategory} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={3}>
-                    {spendingByCategory.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} onClick={() => setClickedCategory(entry)} />
-                    ))}
-                  </Pie>
-                  <ReTooltip content={renderPieTooltip} />
-                  <Legend verticalAlign={isMobile ? "bottom" : "middle"} align={isMobile ? "center" : "right"} />
-                </PieChart>
-              </ResponsiveContainer>
-              {clickedCategory && (
-                <div className="mt-3 text-sm">
-                  <span className="font-medium">{clickedCategory.name}</span>{" "}
-                  <span>— R$ {formatCurrency(clickedCategory.value)} ({totalGasto > 0 ? ((clickedCategory.value / totalGasto) * 100).toFixed(1) : "0.0"}%)</span>
-                </div>
+              {loading ? (
+                <Skeleton className="h-full w-full" />
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={spendingByCategory} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={3}>
+                        {spendingByCategory.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} onClick={() => setClickedCategory(entry)} />
+                        ))}
+                      </Pie>
+                      <ReTooltip content={renderPieTooltip} />
+                      <Legend verticalAlign={isMobile ? "bottom" : "middle"} align={isMobile ? "center" : "right"} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {clickedCategory && (
+                    <div className="mt-3 text-sm">
+                      <span className="font-medium">{clickedCategory.name}</span>{" "}
+                      <span>— R$ {formatCurrency(clickedCategory.value)} ({totalGasto > 0 ? ((clickedCategory.value / totalGasto) * 100).toFixed(1) : "0.0"}%)</span>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -477,21 +523,25 @@ const Dashboard = () => {
               <CardDescription>Tendência diária</CardDescription>
             </CardHeader>
             <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                 <AreaChart data={seriesByDay} margin={{ left: 12, right: 12 }}>
-                  <defs>
-                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.6} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" />
-                  <YAxis stroke="hsl(var(--muted-foreground))" />
-                  <ReTooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
-                  <Area type="monotone" dataKey="total" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorTotal)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              {loading ? (
+                <Skeleton className="h-full w-full" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={seriesByDay} margin={{ left: 12, right: 12 }}>
+                    <defs>
+                      <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" />
+                    <YAxis stroke="hsl(var(--muted-foreground))" />
+                    <ReTooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+                    <Area type="monotone" dataKey="total" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorTotal)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </section>
@@ -514,28 +564,40 @@ const Dashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(() => {
-                      const totalItems = filteredTableRows.length;
-                      const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-                      const currentPage = Math.min(page, totalPages);
-                      const startIdx = (currentPage - 1) * pageSize;
-                      const endIdx = Math.min(startIdx + pageSize, totalItems);
-                      const pageRows = filteredTableRows.slice(startIdx, endIdx);
-                      return pageRows.map((t, i) => (
-                      <TableRow key={i} className="hover:bg-muted/40">
-                        <TableCell>{t.expense_date}</TableCell>
-                        <TableCell><Badge variant="secondary">{t.category_name}</Badge></TableCell>
-                        <TableCell className="text-right">R$ {formatCurrency(t.value)}</TableCell>
-                      </TableRow>
-                      ));
-                    })()}
+                    {loading ? (
+                      Array.from({ length: 5 }).map((_, i) => (
+                        <TableRow key={`sk-${i}`}>
+                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                          <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                          <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      (() => {
+                        const totalItems = filteredTableRows.length;
+                        const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+                        const currentPage = Math.min(page, totalPages);
+                        const startIdx = (currentPage - 1) * pageSize;
+                        const endIdx = Math.min(startIdx + pageSize, totalItems);
+                        const pageRows = filteredTableRows.slice(startIdx, endIdx);
+                        return pageRows.map((t, i) => (
+                          <TableRow key={i} className="hover:bg-muted/40">
+                            <TableCell>{t.expense_date}</TableCell>
+                            <TableCell><Badge variant="secondary">{t.category_name}</Badge></TableCell>
+                            <TableCell className="text-right">R$ {formatCurrency(t.value)}</TableCell>
+                          </TableRow>
+                        ));
+                      })()
+                    )}
                   </TableBody>
                 </Table>
               </div>
               {/* Paginação */}
               <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-xs text-muted-foreground">
-                  {(() => {
+                  {loading ? (
+                    <Skeleton className="h-4 w-40" />
+                  ) : (() => {
                     const totalItems = filteredTableRows.length;
                     const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
                     const currentPage = Math.min(page, totalPages);
@@ -561,7 +623,7 @@ const Dashboard = () => {
                     <Button
                       variant="secondary"
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page <= 1}
+                      disabled={loading || page <= 1}
                     >Anterior</Button>
                     <Button
                       onClick={() => {
@@ -569,7 +631,7 @@ const Dashboard = () => {
                         const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
                         setPage((p) => Math.min(totalPages, p + 1));
                       }}
-                      disabled={(() => {
+                      disabled={loading || (() => {
                         const totalItems = filteredTableRows.length;
                         const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
                         return page >= totalPages;
