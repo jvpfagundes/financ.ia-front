@@ -670,20 +670,25 @@ const Dashboard = () => {
               <CardTitle>Gastos por categoria</CardTitle>
               <CardDescription>Distribuição percentual</CardDescription>
             </CardHeader>
-            <CardContent className="h-72">
+            <CardContent className="h-72 overflow-hidden">
               {loading ? (
                 <Skeleton className="h-full w-full" />
               ) : (
                 <>
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <PieChart margin={{ top: 8, bottom: isMobile ? 24 : 8, left: 8, right: isMobile ? 8 : 160 }}>
                       <Pie data={spendingByCategory} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={3}>
                         {spendingByCategory.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} onClick={() => setClickedCategory(entry)} />
                         ))}
                       </Pie>
                       <ReTooltip content={renderPieTooltip} />
-                      <Legend verticalAlign={isMobile ? "bottom" : "middle"} align={isMobile ? "center" : "right"} />
+                      <Legend
+                        verticalAlign={isMobile ? "bottom" : "middle"}
+                        align={isMobile ? "center" : "right"}
+                        layout={isMobile ? "horizontal" : "vertical"}
+                        wrapperStyle={isMobile ? { paddingTop: 8 } : { width: 140, right: 0 }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                   {clickedCategory && (
