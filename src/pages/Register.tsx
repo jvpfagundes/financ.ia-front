@@ -18,11 +18,10 @@ const Register = () => {
 
   const onlyDigits = (val: string) => val.replace(/\D/g, "");
   const formatPhoneBR = (digits: string) => {
-    const d = digits.slice(0, 11);
+    const d = digits.slice(0, 10);
     if (d.length <= 2) return d;
     if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-    if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7, 11)}`;
+    return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6, 10)}`;
   };
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -33,9 +32,9 @@ const Register = () => {
     const username = String(formData.get("username") || "");
     const password = String(formData.get("password") || "");
 
-    const digits = onlyDigits(phoneDigits);
-    if (digits.length < 10) {
-      toast({ title: "Telefone inválido", description: "Digite ao menos 10 dígitos." });
+    const digits = onlyDigits(phoneDigits).slice(0, 10);
+    if (digits.length !== 10) {
+      toast({ title: "Telefone inválido", description: "Telefone deve ter 10 dígitos (DDD + 8)." });
       return;
     }
     if (!birthDate) {
@@ -101,13 +100,13 @@ const Register = () => {
                       id="phone_number_display"
                       inputMode="numeric"
                       autoComplete="tel"
-                      placeholder="(11) 99999-9999"
+                      placeholder="(11) 9999-9999"
                       value={formatPhoneBR(phoneDigits)}
-                      onChange={(e) => setPhoneDigits(onlyDigits(e.target.value))}
+                      onChange={(e) => setPhoneDigits(onlyDigits(e.target.value).slice(0, 10))}
                       required
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">O número será enviado como 55 + dígitos (ex.: 554199999999).</p>
+                  <p className="text-xs text-muted-foreground">O número será enviado como 55 + dígitos (ex.: 551112345678).</p>
                 </div>
 
                 <div className="grid gap-2">
